@@ -1,8 +1,7 @@
 import axios from 'axios'
 
 const http = axios.create({
-  baseURL: 'https://jsonplaceholder.typicode.com'
-  //   baseURL: 'https://fe-interview-api.unnotech.com'
+  baseURL: 'https://fe-interview-api.unnotech.com'
 })
 
 http.interceptors.request.use(
