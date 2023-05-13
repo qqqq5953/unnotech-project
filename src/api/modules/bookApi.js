@@ -1,25 +1,25 @@
-import useAxios from '@/composables/useAxios.js'
+import http from '@/api/index.js'
 
 export default {
   getBookList: (url) => {
-    return useAxios({
+    return http({
       url
     })
   },
   getSingleBook: (url) => {
-    return useAxios({
+    return http({
       url
     })
   },
   postSingleBook: (url, data) => {
-    return service({
+    return http({
       method: 'POST',
       url,
       data
     })
   },
   patchBookDetail: (url) => {
-    return useAxios({
+    return http({
       method: 'PATCH',
       url,
       data
