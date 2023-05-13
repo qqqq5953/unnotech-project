@@ -1,22 +1,136 @@
 <script setup>
 import bookApi from "@/api/modules/bookApi.js";
-import { computed, ref, watch } from "vue";
-const { data, error, loading } = bookApi.getBookList("/books");
+import { computed, ref } from "vue";
+import BaseModal from "@/components/BaseModal.vue";
 
-const books = computed(() => {
-  if (!data.value) return;
-  return data.value.filter((item) => item.title && item.author);
+const books = ref([]);
+const state = ref({
+  error: null,
+  loading: false,
 });
+
+(async () => {
+  try {
+    state.value.loading = true;
+    const res = await bookApi.getBookList("/books");
+    books.value = res.data.filter((item) => item.title && item.author);
+  } catch (error) {
+    state.value.error = error.message;
+  } finally {
+    state.value.loading = false;
+  }
+})();
+
+const isOpen = ref(false);
+function toggleModal(open) {
+  if (!open) form.value.reset();
+  isOpen.value = open;
+}
+
+const form = ref({
+  title: "",
+  author: "",
+  description: "",
+  reset() {
+    for (const key in this) {
+      if (
+        this.hasOwnProperty(key) &&
+        typeof this[key] !== "function" &&
+        this[key]
+      ) {
+        this[key] = "";
+      }
+    }
+  },
+});
+
+async function addBook() {
+  try {
+    state.value.loading = true;
+    const { author, title, description } = form.value;
+    const url = `/books?author=${author}&title=${title}&description=${description}`;
+    const res = await bookApi.postSingleBook(url);
+    console.log("addBook", res);
+    toggleModal(false);
+  } catch (error) {
+    state.value.error = error.message;
+  } finally {
+    state.value.loading = false;
+  }
+}
 </script>
 
 <template>
+  <Teleport to="body">
+    <div v-show="isOpen">
+      <BaseModal>
+        <template #header>
+          <header class="relative bg-white p-3 text-xl">
+            <button
+              class="absolute left-3 top-1/2 -translate-y-1/2 font-bold"
+              @click="toggleModal(false)"
+            >
+              <i class="fa-solid fa-arrow-left fa-xl"></i>
+            </button>
+            <h2 class="text-center">新增書本</h2>
+          </header>
+        </template>
+
+        <template #body>
+          <form
+            class="flex flex-col gap-y-6 p-3 h-full text-xs"
+            @submit.prevent="addBook"
+          >
+            <input
+              class="mt-auto px-4 py-2"
+              type="text"
+              v-model="form.title"
+              placeholder="名稱"
+            />
+            <input
+              class="px-4 py-2"
+              type="text"
+              v-model="form.author"
+              placeholder="作者"
+            />
+            <textarea
+              class="px-4 py-2"
+              cols="30"
+              rows="10"
+              v-model="form.description"
+              placeholder="備註"
+            ></textarea>
+
+            <div class="flex gap-x-8 text-white">
+              <button
+                class="rounded-full bg-slate-300 w-1/2 p-3"
+                @click="toggleModal(false)"
+              >
+                取消
+              </button>
+              <button type="submit" class="rounded-full bg-blue-500 w-1/2 p-3">
+                新增
+              </button>
+            </div>
+          </form>
+        </template>
+      </BaseModal>
+    </div>
+  </Teleport>
+
   <div class="bg-slate-200">
     <header class="relative bg-white p-3 text-xl">
       <h2 class="text-center">書本列表</h2>
-      <button class="absolute right-3 top-1/2 -translate-y-1/2">+</button>
+      <button
+        class="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-blue-500"
+        @click="toggleModal(true)"
+      >
+        <i class="fa-solid fa-plus fa-xl"></i>
+      </button>
     </header>
-    <div class="grid place-items-center" v-if="loading">loading...</div>
-    <div v-else-if="error">{{ error }}</div>
+
+    <div class="grid place-items-center" v-if="state.loading">loading...</div>
+    <div v-else-if="state.error">{{ state.error }}</div>
 
     <main class="py-3 md:py-6 lg:py-12" v-else>
       <ul class="flex flex-wrap gap-y-3 md:gap-y-6 lg:gap-y-12">
@@ -37,7 +151,7 @@ const books = computed(() => {
             >
               image lost...
             </div>
-            <h2 class="font-medium break-words line-clamp">
+            <h2 class="font-medium break-words line-clamp-2">
               {{ book.title }}
             </h2>
             <p
@@ -51,14 +165,3 @@ const books = computed(() => {
     </main>
   </div>
 </template>
-
-
-
-<style>
-.line-clamp {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-</style>
