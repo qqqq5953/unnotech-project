@@ -2,6 +2,8 @@
 import bookApi from "@/api/modules/bookApi.js";
 import { computed, ref } from "vue";
 import BaseModal from "@/components/BaseModal.vue";
+import InputText from "@/components/forms/InputText.vue";
+import { notEmpty } from "@/tools/validators.js";
 
 const books = ref([]);
 const state = ref({
@@ -28,31 +30,79 @@ function toggleModal(open) {
 }
 
 const form = ref({
-  title: "",
-  author: "",
-  description: "",
+  title: {
+    value: "",
+    errors: [],
+    validation: [
+      {
+        regex: notEmpty,
+        msg: "required field",
+      },
+    ],
+  },
+  author: {
+    value: "",
+    errors: [],
+    validation: [
+      {
+        regex: notEmpty,
+        msg: "required field",
+      },
+    ],
+  },
+  description: {
+    value: "",
+    errors: [],
+    validation: [],
+  },
   reset() {
-    for (const key in this) {
-      if (
-        this.hasOwnProperty(key) &&
-        typeof this[key] !== "function" &&
-        this[key]
-      ) {
-        this[key] = "";
+    for (const field in this) {
+      if (this.hasOwnProperty(field) && typeof this[field] !== "function") {
+        this[field].value = "";
+        this[field].errors.length = 0;
       }
     }
+  },
+  validate() {
+    const validState = Object.entries(this).reduce((obj, [field, item]) => {
+      const { value, errors, validation } = item;
+      if (typeof item === "function") return obj;
+
+      const isAllValid = validation.every((condition) => {
+        const { regex, msg } = condition;
+
+        if (value.match(regex)) {
+          const index = errors.indexOf(msg);
+          this[field].errors.splice(index, 1);
+        } else if (!errors.includes(msg)) {
+          this[field].errors.push(msg);
+        }
+
+        return value.match(regex);
+      });
+
+      obj[field] = isAllValid;
+      return obj;
+    }, {});
+
+    return validState;
   },
 });
 
 async function addBook() {
+  const validState = form.value.validate();
+  const isAllValid = Object.values(validState).every((isValid) => isValid);
+  if (!isAllValid) return;
+
   try {
     state.value.loading = true;
     const { author, title, description } = form.value;
-    const url = `/books?author=${author}&title=${title}&description=${description}`;
+    const url = `/books?author=${author.value}&title=${title.value}&description=${description.value}`;
     const res = await bookApi.postSingleBook(url);
-    console.log("addBook", res);
+    // console.log("addBook", res);
     toggleModal(false);
   } catch (error) {
+    console.log("error", error);
     state.value.error = error.message;
   } finally {
     state.value.loading = false;
@@ -81,23 +131,22 @@ async function addBook() {
             class="flex flex-col gap-y-6 p-3 h-full text-xs"
             @submit.prevent="addBook"
           >
-            <input
-              class="mt-auto px-4 py-2"
-              type="text"
-              v-model="form.title"
+            <InputText
+              class="mt-auto"
+              v-model="form.title.value"
               placeholder="名稱"
+              :errors="form.title.errors"
             />
-            <input
-              class="px-4 py-2"
-              type="text"
-              v-model="form.author"
+            <InputText
+              v-model="form.author.value"
               placeholder="作者"
+              :errors="form.author.errors"
             />
             <textarea
               class="px-4 py-2"
               cols="30"
               rows="10"
-              v-model="form.description"
+              v-model="form.description.value"
               placeholder="備註"
             ></textarea>
 
