@@ -7,6 +7,7 @@ import InputText from "@/components/forms/InputText.vue";
 import TextArea from "@/components/forms/TextArea.vue";
 import { notEmpty } from "@/tools/validators.js";
 import { useRouter } from "vue-router";
+import { reset, validate, checkNewContent } from "@/tools/formHelper.js";
 
 const props = defineProps({
   bookId: String,
@@ -81,47 +82,6 @@ const form = ref({
       },
     ],
   },
-  reset() {
-    Object.entries(this).forEach(([field, fieldObj]) => {
-      if (typeof fieldObj !== "function") {
-        fieldObj.inputValue = book.value[field];
-        fieldObj.errors.length = 0;
-      }
-    });
-  },
-  validate() {
-    const validState = Object.entries(this).reduce((obj, [field, fieldObj]) => {
-      const { inputValue, errors, validation } = fieldObj;
-      if (typeof fieldObj === "function") return obj;
-
-      const isAllValid = validation.every((condition) => {
-        const { regex, msg } = condition;
-
-        if (inputValue.match(regex)) {
-          const index = errors.indexOf(msg);
-          fieldObj.errors.splice(index, 1);
-        } else if (!errors.includes(msg)) {
-          fieldObj.errors.push(msg);
-        }
-
-        return inputValue.match(regex);
-      });
-
-      obj[field] = isAllValid;
-      return obj;
-    }, {});
-
-    console.log("this", this);
-
-    return validState;
-  },
-  checkNewContent() {
-    return Object.entries(this).some(([field, fieldObj]) => {
-      if (typeof fieldObj !== "function") {
-        return fieldObj.inputValue !== book.value[field];
-      }
-    });
-  },
   setFormData(data) {
     Object.entries(data).forEach(([field, value]) => {
       if (this[field]) {
@@ -140,7 +100,7 @@ function toggleEdit(edit) {
   isEdit.value = edit;
 
   if (!edit) {
-    form.value.reset();
+    reset(form.value, book.value);
     setState({ msg: "" });
   } else {
     nextTick().then(() => {
@@ -149,9 +109,9 @@ function toggleEdit(edit) {
   }
 }
 async function confirmEdit() {
-  const validState = form.value.validate();
+  const validState = validate(form.value);
   const isAllValid = Object.values(validState).every((isValid) => isValid);
-  isNewContent.value = form.value.checkNewContent();
+  isNewContent.value = checkNewContent(form.value, book.value);
   if (!isAllValid || !isNewContent.value) return;
 
   try {
@@ -189,7 +149,7 @@ watch(
       newAuthor !== book.value.author ||
       newDescription !== book.value.description;
 
-    if (!isNewContent.value) form.value.reset();
+    if (!isNewContent.value) reset(form.value, book.value);
   }
 );
 </script>

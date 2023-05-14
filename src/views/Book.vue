@@ -7,6 +7,7 @@ import BaseContainer from "@/components/global/BaseContainer.vue";
 import InputText from "@/components/forms/InputText.vue";
 import { notEmpty } from "@/tools/validators.js";
 import { useRouter } from "vue-router";
+import { reset, validate } from "@/tools/formHelper.js";
 
 onMounted(async () => {
   setState({ loading: true });
@@ -42,7 +43,7 @@ async function getBookList() {
 // modal
 const isModalOpen = ref(false);
 function toggleModal(isOpen) {
-  if (!isOpen) form.value.reset();
+  if (!isOpen) reset(form.value);
   isModalOpen.value = isOpen;
 }
 
@@ -73,42 +74,10 @@ const form = ref({
     errors: [],
     validation: [],
   },
-  reset() {
-    Object.entries(this).forEach(([field, fieldObj]) => {
-      if (typeof fieldObj !== "function") {
-        fieldObj.inputValue = "";
-        fieldObj.errors.length = 0;
-      }
-    });
-  },
-  validate() {
-    const validState = Object.entries(this).reduce((obj, [field, fieldObj]) => {
-      const { inputValue, errors, validation } = fieldObj;
-      if (typeof fieldObj === "function") return obj;
-
-      const isAllValid = validation.every((condition) => {
-        const { regex, msg } = condition;
-
-        if (inputValue.match(regex)) {
-          const index = errors.indexOf(msg);
-          fieldObj.errors.splice(index, 1);
-        } else if (!errors.includes(msg)) {
-          fieldObj.errors.push(msg);
-        }
-
-        return inputValue.match(regex);
-      });
-
-      obj[field] = isAllValid;
-      return obj;
-    }, {});
-
-    return validState;
-  },
 });
 
 async function addBook() {
-  const validState = form.value.validate();
+  const validState = validate(form.value);
   const isAllValid = Object.values(validState).every((isValid) => isValid);
   if (!isAllValid) return;
 
@@ -118,7 +87,7 @@ async function addBook() {
     const res = await bookApi.postSingleBook(url);
 
     if (res && res.status === 201) {
-      form.value.reset();
+      reset(form.value);
       setState({ msg: "新增成功!" });
     } else {
       setState({ msg: "新增失敗!" });
