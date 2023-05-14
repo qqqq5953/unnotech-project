@@ -1,6 +1,6 @@
 <script setup>
 import bookApi from "@/api/modules/bookApi.js";
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import BaseModal from "@/components/global/BaseModal.vue";
 import BaseHeader from "@/components/global/BaseHeader.vue";
 import BaseContainer from "@/components/global/BaseContainer.vue";
@@ -8,33 +8,48 @@ import InputText from "@/components/forms/InputText.vue";
 import { notEmpty } from "@/tools/validators.js";
 import { useRouter } from "vue-router";
 
-const books = ref([]);
-const state = ref({
-  error: null,
-  loading: false,
+onMounted(async () => {
+  setState({ loading: true });
+  books.value = await getBookList();
+  setState({ loading: false });
 });
 
-(async () => {
-  try {
-    state.value.loading = true;
-    const res = await bookApi.getBookList("/books");
-    books.value = res.data.filter((item) => item.title && item.author);
-  } catch (error) {
-    state.value.error = error.message;
-  } finally {
-    state.value.loading = false;
-  }
-})();
+// state
+const state = ref({
+  error: "",
+  loading: false,
+  msg: "",
+});
+function setState({ error, loading, msg }) {
+  Object.entries({ error, loading, msg }).forEach(([key, value]) => {
+    if (value != null) {
+      state.value[key] = value;
+    }
+  });
+}
 
+// book
+const books = ref([]);
+async function getBookList() {
+  try {
+    const res = await bookApi.getBookList("/books");
+    return res.data.filter((item) => item.title && item.author);
+  } catch (error) {
+    setState({ error: error.message });
+  }
+}
+
+// modal
 const isModalOpen = ref(false);
 function toggleModal(isOpen) {
   if (!isOpen) form.value.reset();
   isModalOpen.value = isOpen;
 }
 
+// form
 const form = ref({
   title: {
-    value: "",
+    inputValue: "",
     errors: [],
     validation: [
       {
@@ -44,7 +59,7 @@ const form = ref({
     ],
   },
   author: {
-    value: "",
+    inputValue: "",
     errors: [],
     validation: [
       {
@@ -54,34 +69,34 @@ const form = ref({
     ],
   },
   description: {
-    value: "",
+    inputValue: "",
     errors: [],
     validation: [],
   },
   reset() {
     Object.entries(this).forEach(([field, fieldObj]) => {
       if (typeof fieldObj !== "function") {
-        fieldObj.value = "";
+        fieldObj.inputValue = "";
         fieldObj.errors.length = 0;
       }
     });
   },
   validate() {
-    const validState = Object.entries(this).reduce((obj, [field, item]) => {
-      const { value, errors, validation } = item;
-      if (typeof item === "function") return obj;
+    const validState = Object.entries(this).reduce((obj, [field, fieldObj]) => {
+      const { inputValue, errors, validation } = fieldObj;
+      if (typeof fieldObj === "function") return obj;
 
       const isAllValid = validation.every((condition) => {
         const { regex, msg } = condition;
 
-        if (value.match(regex)) {
+        if (inputValue.match(regex)) {
           const index = errors.indexOf(msg);
-          this[field].errors.splice(index, 1);
+          fieldObj.errors.splice(index, 1);
         } else if (!errors.includes(msg)) {
-          this[field].errors.push(msg);
+          fieldObj.errors.push(msg);
         }
 
-        return value.match(regex);
+        return inputValue.match(regex);
       });
 
       obj[field] = isAllValid;
@@ -98,17 +113,19 @@ async function addBook() {
   if (!isAllValid) return;
 
   try {
-    state.value.loading = true;
     const { author, title, description } = form.value;
-    const url = `/books?author=${author.value}&title=${title.value}&description=${description.value}`;
+    const url = `/books?author=${author.inputValue}&title=${title.inputValue}&description=${description.inputValue}`;
     const res = await bookApi.postSingleBook(url);
-    // console.log("addBook", res);
-    toggleModal(false);
+
+    if (res && res.status === 201) {
+      form.value.reset();
+      setState({ msg: "新增成功!" });
+    } else {
+      setState({ msg: "新增失敗!" });
+    }
   } catch (error) {
-    console.log("error", error);
-    state.value.error = error.message;
-  } finally {
-    state.value.loading = false;
+    setState({ error: error.message });
+    setState({ msg: "新增失敗!" });
   }
 }
 
@@ -116,6 +133,19 @@ const router = useRouter();
 function viewDetail(book) {
   router.push({ name: "Detail", params: { bookId: book.id } });
 }
+
+watch(
+  [
+    () => form.value.title.inputValue,
+    () => form.value.author.inputValue,
+    () => form.value.description.inputValue,
+  ],
+  ([newTitle, newAuthor, newDescription]) => {
+    if (newTitle || newAuthor || newDescription) {
+      setState({ msg: "" });
+    }
+  }
+);
 </script>
 
 <template>
@@ -133,14 +163,16 @@ function viewDetail(book) {
 
         <template #body>
           <form class="flex flex-col gap-y-6 p-3 h-full text-xs mt-auto">
+            <div class="text-center" v-if="state.msg">{{ state.msg }}</div>
+            <div class="text-center" v-if="state.error">{{ state.error }}</div>
             <InputText
               class="mt-auto"
-              v-model="form.title.value"
+              v-model="form.title.inputValue"
               placeholder="名稱"
               :errors="form.title.errors"
             />
             <InputText
-              v-model="form.author.value"
+              v-model="form.author.inputValue"
               placeholder="作者"
               :errors="form.author.errors"
             />
@@ -148,7 +180,7 @@ function viewDetail(book) {
               class="px-4 py-2"
               cols="30"
               rows="10"
-              v-model="form.description.value"
+              v-model="form.description.inputValue"
               placeholder="備註"
             ></textarea>
 
@@ -190,7 +222,7 @@ function viewDetail(book) {
         <ul class="flex flex-wrap gap-y-3 md:gap-y-6 lg:gap-y-12">
           <li class="w-1/2 group" v-for="book in books" :key="book.id">
             <div
-              class="flex flex-col items-center gap-y-4 rounded bg-white hover:shadow-lg hover:cursor-pointer hover:border h-full text-xs p-3 group-odd:ml-3 group-odd:mr-1.5 group-even:mr-3 group-even:ml-1.5 group-odd:md:ml-6 group-odd:md:mr-3 group-even:md:ml-3 group-even:md:mr-6 md:p-6 group-odd:lg:ml-12 group-odd:lg:mr-6 group-even:lg:mr-12 group-even:lg:ml-6"
+              class="flex flex-col items-center gap-y-4 rounded bg-white hover:shadow-lg hover:cursor-pointer hover:outline hover:outline-blue-300 h-full text-xs p-3 group-odd:ml-3 group-odd:mr-1.5 group-even:mr-3 group-even:ml-1.5 group-odd:md:ml-6 group-odd:md:mr-3 group-even:md:ml-3 group-even:md:mr-6 md:p-6 group-odd:lg:ml-12 group-odd:lg:mr-6 group-even:lg:mr-12 group-even:lg:ml-6"
               @click="viewDetail(book)"
             >
               <div class="h-36 md:h-60 lg:h-80" v-if="book.image">
