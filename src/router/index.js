@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import bookRoute from './book.js'
 
 const routes = [
   {
@@ -7,17 +8,7 @@ const routes = [
     component: () => import('../views/Home.vue'),
     redirect: { name: 'Book' }
   },
-  {
-    path: '/book',
-    name: 'Book',
-    component: () => import('@/views/Book.vue')
-  },
-  {
-    path: '/book/:bookId',
-    name: 'Detail',
-    component: () => import('@/views/Detail.vue'),
-    props: true
-  },
+  ...bookRoute,
   {
     path: '/:pathMatch(.*)*',
     redirect: '/'
@@ -26,10 +17,6 @@ const routes = [
 
 const router = createRouter({
   history: createWebHashHistory(),
-  linkActiveClass: 'font-semibold text-indigo-600',
-  scrollBehavior(to, from, savedPosition) {
-    return { top: 0, behavior: 'smooth' }
-  },
   routes
 })
 
