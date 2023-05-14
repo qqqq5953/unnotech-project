@@ -14,9 +14,11 @@ const props = defineProps({
 const router = useRouter();
 
 onMounted(async () => {
+  setState({ loading: true });
   const bookData = await getBookData();
   book.value = bookData;
   form.value.setFormData(bookData);
+  setState({ loading: false });
 });
 
 // state
@@ -37,13 +39,10 @@ function setState({ error, loading, msg }) {
 const book = ref(null);
 async function getBookData() {
   try {
-    state.value.loading = true;
     const res = await bookApi.getSingleBook(`/books/${props.bookId}`);
     return res.data;
   } catch (error) {
-    state.value.error = error.message;
-  } finally {
-    state.value.loading = false;
+    setState({ error: error.message });
   }
 }
 function setBookData(data) {
@@ -75,7 +74,12 @@ const form = ref({
   description: {
     inputValue: "",
     errors: [],
-    validation: [],
+    validation: [
+      {
+        regex: notEmpty,
+        msg: "required field",
+      },
+    ],
   },
   reset() {
     Object.entries(this).forEach(([field, fieldObj]) => {
@@ -84,6 +88,32 @@ const form = ref({
         fieldObj.errors.length = 0;
       }
     });
+  },
+  validate() {
+    const validState = Object.entries(this).reduce((obj, [field, fieldObj]) => {
+      const { inputValue, errors, validation } = fieldObj;
+      if (typeof fieldObj === "function") return obj;
+
+      const isAllValid = validation.every((condition) => {
+        const { regex, msg } = condition;
+
+        if (inputValue.match(regex)) {
+          const index = errors.indexOf(msg);
+          fieldObj.errors.splice(index, 1);
+        } else if (!errors.includes(msg)) {
+          fieldObj.errors.push(msg);
+        }
+
+        return inputValue.match(regex);
+      });
+
+      obj[field] = isAllValid;
+      return obj;
+    }, {});
+
+    console.log("this", this);
+
+    return validState;
   },
   checkNewContent() {
     return Object.entries(this).some(([field, fieldObj]) => {
@@ -119,8 +149,10 @@ function toggleEdit(edit) {
   }
 }
 async function confirmEdit() {
+  const validState = form.value.validate();
+  const isAllValid = Object.values(validState).every((isValid) => isValid);
   isNewContent.value = form.value.checkNewContent();
-  if (!isNewContent.value) return;
+  if (!isAllValid || !isNewContent.value) return;
 
   try {
     const { author, title, description } = form.value;
@@ -156,6 +188,8 @@ watch(
       newTitle !== book.value.title ||
       newAuthor !== book.value.author ||
       newDescription !== book.value.description;
+
+    if (!isNewContent.value) form.value.reset();
   }
 );
 </script>
@@ -200,11 +234,11 @@ watch(
           :isDisabled="!isEdit"
         />
         <TextArea
-          class="px-4 py-2 bg-white"
           cols="30"
           rows="10"
           v-model="form.description.inputValue"
           placeholder="備註"
+          :errors="form.description.errors"
           :isDisabled="!isEdit"
         />
         <div class="flex gap-x-8 text-white" v-if="isEdit">
