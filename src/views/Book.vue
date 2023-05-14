@@ -5,6 +5,7 @@ import BaseModal from "@/components/global/BaseModal.vue";
 import BaseHeader from "@/components/global/BaseHeader.vue";
 import BaseContainer from "@/components/global/BaseContainer.vue";
 import InputText from "@/components/forms/InputText.vue";
+import TextArea from "@/components/forms/TextArea.vue";
 import { notEmpty } from "@/tools/validators.js";
 import { useRouter } from "vue-router";
 import { reset, validate } from "@/tools/formHelper.js";
@@ -145,13 +146,13 @@ watch(
               placeholder="作者"
               :errors="form.author.errors"
             />
-            <textarea
-              class="px-4 py-2"
+
+            <TextArea
               cols="30"
               rows="10"
               v-model="form.description.inputValue"
               placeholder="備註"
-            ></textarea>
+            />
 
             <div class="flex gap-x-8 text-white">
               <button
