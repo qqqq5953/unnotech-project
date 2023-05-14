@@ -13,6 +13,12 @@ const routes = [
     component: () => import('@/views/Book.vue')
   },
   {
+    path: '/book/:bookId',
+    name: 'Detail',
+    component: () => import('@/views/Detail.vue'),
+    props: true
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }

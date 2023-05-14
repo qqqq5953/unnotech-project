@@ -18,7 +18,7 @@ export default {
       data
     })
   },
-  patchBookDetail: (url) => {
+  patchBookDetail: (url, data) => {
     return http({
       method: 'PATCH',
       url,

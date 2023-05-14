@@ -16,7 +16,7 @@ defineEmits(["update:modelValue"]);
 
 <template>
   <textarea
-    class="px-4 py-2 bg-white"
+    class="px-4 py-2 bg-white focus:outline-blue-300"
     cols="30"
     rows="10"
     :value="modelValue"

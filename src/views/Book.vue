@@ -59,12 +59,12 @@ const form = ref({
     validation: [],
   },
   reset() {
-    for (const field in this) {
-      if (this.hasOwnProperty(field) && typeof this[field] !== "function") {
-        this[field].value = "";
-        this[field].errors.length = 0;
+    Object.entries(this).forEach(([field, fieldObj]) => {
+      if (typeof fieldObj !== "function") {
+        fieldObj.value = "";
+        fieldObj.errors.length = 0;
       }
-    }
+    });
   },
   validate() {
     const validState = Object.entries(this).reduce((obj, [field, item]) => {
